@@ -1,5 +1,6 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   HiOutlineChartBar,
   HiOutlineCloudUpload,
@@ -9,7 +10,9 @@ import {
   HiOutlineX,
   HiOutlineLightningBolt,
   HiOutlineTerminal,
-  HiOutlineCurrencyDollar
+  HiOutlineCurrencyDollar,
+  HiOutlineLogout,
+  HiOutlineUserCircle
 } from 'react-icons/hi';
 import './Sidebar.css';
 
@@ -23,9 +26,13 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <>
@@ -52,7 +59,7 @@ export default function Sidebar() {
           {!collapsed && (
             <div className="sidebar-logo-text">
               <span className="sidebar-logo-name">AdaptZip</span>
-              <span className="sidebar-logo-sub">AI Compression</span>
+              <span className="sidebar-logo-sub">AI Engine</span>
             </div>
           )}
         </div>
@@ -77,14 +84,29 @@ export default function Sidebar() {
           })}
         </nav>
 
-        {/* Footer */}
+        {/* User Info & Footer */}
         <div className="sidebar-footer">
-          {!collapsed && (
-            <div className="sidebar-version">
-              <div className="sidebar-dot" />
-              v1.0.0 — Engine Ready
+          {user && (
+            <div className={`sidebar-user ${collapsed ? 'center' : ''}`}>
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-avatar"><HiOutlineUserCircle /></span>
+                {!collapsed && (
+                  <div className="sidebar-user-details">
+                    <span className="sidebar-user-name">{user.name}</span>
+                    <span className="sidebar-user-role">{user.role}</span>
+                  </div>
+                )}
+              </div>
+              <button 
+                className="sidebar-logout-btn" 
+                onClick={handleLogout}
+                title="Logout"
+              >
+                <HiOutlineLogout />
+              </button>
             </div>
           )}
+          
           <button
             className="sidebar-collapse-btn"
             onClick={() => setCollapsed(!collapsed)}

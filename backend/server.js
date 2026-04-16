@@ -7,7 +7,11 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 
-// Import modules
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const cookieParser = require('cookie-parser');
+const User = require('./models/User');
+const { protect, restrictTo } = require('./middleware/auth');
 const { profileDataset } = require('./engine/profiler');
 const { selectAlgorithms } = require('./engine/aiSelector');
 const { compressDataset } = require('./engine/compressor');
@@ -28,6 +32,7 @@ if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
+app.use(cookieParser());
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -85,6 +90,122 @@ if (process.env.MONGODB_URI) {
 // In-memory job store
 const jobs = new Map();
 
+// ==================== AUTH ROUTES ====================
+
+// Helper for JWT
+const signToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET || 'your_super_secret_jwt_key_2024', {
+    expiresIn: process.env.JWT_EXPIRES_IN || '90d'
+  });
+};
+
+const createSendToken = (user, statusCode, res) => {
+  const token = signToken(user._id);
+  const cookieOptions = {
+    expires: new Date(Date.now() + (parseInt(process.env.JWT_COOKIE_EXPIRES_IN) || 90) * 24 * 60 * 60 * 1000),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  };
+
+  res.cookie('jwt', token, cookieOptions);
+
+  // Remove password from output
+  user.password = undefined;
+
+  res.status(statusCode).json({
+    status: 'success',
+    token,
+    data: { user }
+  });
+};
+
+// Captcha store (In-memory for demo, should use Redis/Session in production)
+const captchas = new Map();
+
+app.get('/api/auth/captcha', (req, res) => {
+  const num1 = Math.floor(Math.random() * 10);
+  const num2 = Math.floor(Math.random() * 10);
+  const captchaId = uuidv4();
+  const answer = num1 + num2;
+  
+  captchas.set(captchaId, { answer, expires: Date.now() + 300000 }); // 5 min expiry
+  
+  res.json({
+    captchaId,
+    question: `What is ${num1} + ${num2}?`
+  });
+});
+
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const { name, email, password, confirmPassword, captchaId, captchaAnswer } = req.body;
+
+    // High Security Checks
+    if (!name || !email || !password || !confirmPassword) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    // Verify Captcha
+    const captcha = captchas.get(captchaId);
+    if (!captcha || captcha.answer !== parseInt(captchaAnswer)) {
+      return res.status(400).json({ error: 'Invalid or expired captcha' });
+    }
+    captchas.delete(captchaId);
+
+    const newUser = await User.create({
+      name,
+      email,
+      password,
+      role: 'user' // Default role
+    });
+
+    createSendToken(newUser, 201, res);
+  } catch (err) {
+    if (err.code === 11000) return res.status(400).json({ error: 'Email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Please provide email and password' });
+    }
+
+    const user = await User.findOne({ email }).select('+password');
+
+    if (!user || !(await user.comparePassword(password, user.password))) {
+      return res.status(401).json({ error: 'Incorrect email or password' });
+    }
+
+    createSendToken(user, 200, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/auth/logout', (req, res) => {
+  res.cookie('jwt', 'loggedout', {
+    expires: new Date(Date.now() + 10 * 1000),
+    httpOnly: true
+  });
+  res.status(200).json({ status: 'success' });
+});
+
+app.get('/api/auth/me', protect, (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    data: { user: req.user }
+  });
+});
+
 // ==================== API ROUTES ====================
 
 // Health check
@@ -99,7 +220,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Upload and process dataset
-app.post('/api/compress', upload.single('dataset'), async (req, res) => {
+app.post('/api/compress', protect, upload.single('dataset'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No dataset file uploaded' });
@@ -140,7 +261,7 @@ app.post('/api/compress', upload.single('dataset'), async (req, res) => {
 });
 
 // Get job status
-app.get('/api/jobs/:jobId', (req, res) => {
+app.get('/api/jobs/:jobId', protect, (req, res) => {
   const job = jobs.get(req.params.jobId);
   if (!job) {
     return res.status(404).json({ error: 'Job not found' });
@@ -149,7 +270,7 @@ app.get('/api/jobs/:jobId', (req, res) => {
 });
 
 // Get all jobs
-app.get('/api/jobs', (req, res) => {
+app.get('/api/jobs', protect, (req, res) => {
   const allJobs = Array.from(jobs.values()).sort((a, b) => b.startTime - a.startTime);
   res.json(allJobs);
 });
@@ -186,7 +307,7 @@ app.post('/api/demo/compress', async (req, res) => {
 });
 
 // Get compression stats
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', protect, (req, res) => {
   const allJobs = Array.from(jobs.values()).filter(j => j.status === 'completed');
   const totalOriginal = allJobs.reduce((sum, j) => sum + (j.fileSize || 0), 0);
   const totalCompressed = allJobs.reduce((sum, j) => sum + (j.result?.compressedSize || 0), 0);

@@ -139,7 +139,7 @@ app.get('/api/auth/captcha', (req, res) => {
 
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, password, confirmPassword, captchaId, captchaAnswer } = req.body;
+    const { name, email, password, confirmPassword } = req.body;
 
     // High Security Checks
     if (!name || !email || !password || !confirmPassword) {
@@ -149,13 +149,6 @@ app.post('/api/auth/signup', async (req, res) => {
     if (password !== confirmPassword) {
       return res.status(400).json({ error: 'Passwords do not match' });
     }
-
-    // Verify Captcha
-    const captcha = captchas.get(captchaId);
-    if (!captcha || captcha.answer !== parseInt(captchaAnswer)) {
-      return res.status(400).json({ error: 'Invalid or expired captcha' });
-    }
-    captchas.delete(captchaId);
 
     const newUser = await User.create({
       name,

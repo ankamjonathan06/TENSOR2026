@@ -11,10 +11,8 @@ const Signup = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    captchaAnswer: ''
+    confirmPassword: ''
   });
-  const [captcha, setCaptcha] = useState({ id: '', question: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -23,17 +21,7 @@ const Signup = () => {
 
   useEffect(() => {
     if (user) navigate('/dashboard');
-    fetchCaptcha();
   }, [user, navigate]);
-
-  const fetchCaptcha = async () => {
-    try {
-      const res = await api.get('/auth/captcha');
-      setCaptcha(res.data);
-    } catch (err) {
-      console.error('Failed to fetch captcha');
-    }
-  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -49,14 +37,10 @@ const Signup = () => {
     setError('');
     
     try {
-      await signup({
-        ...formData,
-        captchaId: captcha.captchaId
-      });
+      await signup(formData);
       navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Signup failed. Please try again.');
-      fetchCaptcha(); // Refresh captcha on error
     } finally {
       setLoading(false);
     }
@@ -145,27 +129,6 @@ const Signup = () => {
                   required
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="form-group captcha-group">
-            <label>High-Security Verification</label>
-            <div className="captcha-box">
-              <span className="captcha-question">{captcha.question || 'Loading...'}</span>
-              <button type="button" onClick={fetchCaptcha} className="refresh-captcha">
-                <FiRefreshCw />
-              </button>
-            </div>
-            <div className="input-with-icon">
-              <FiShield className="input-icon" />
-              <input 
-                type="number" 
-                name="captchaAnswer"
-                placeholder="Enter answer" 
-                value={formData.captchaAnswer}
-                onChange={handleChange}
-                required
-              />
             </div>
           </div>
 

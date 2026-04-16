@@ -40,7 +40,8 @@ const Signup = () => {
       await signup(formData);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.error || 'Signup failed. Please try again.');
+      // Display the actual error from the server (e.g., "Password too short")
+      setError(err.response?.data?.error || err.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }

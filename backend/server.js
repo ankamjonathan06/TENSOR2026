@@ -201,7 +201,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Upload and process dataset
-app.post('/api/compress', protect, upload.single('dataset'), async (req, res) => {
+app.post('/api/compress', upload.single('dataset'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No dataset file uploaded' });
@@ -242,7 +242,7 @@ app.post('/api/compress', protect, upload.single('dataset'), async (req, res) =>
 });
 
 // Get job status
-app.get('/api/jobs/:jobId', protect, (req, res) => {
+app.get('/api/jobs/:jobId', (req, res) => {
   const job = jobs.get(req.params.jobId);
   if (!job) {
     return res.status(404).json({ error: 'Job not found' });
@@ -251,7 +251,7 @@ app.get('/api/jobs/:jobId', protect, (req, res) => {
 });
 
 // Get all jobs
-app.get('/api/jobs', protect, (req, res) => {
+app.get('/api/jobs', (req, res) => {
   const allJobs = Array.from(jobs.values()).sort((a, b) => b.startTime - a.startTime);
   res.json(allJobs);
 });
@@ -288,7 +288,7 @@ app.post('/api/demo/compress', async (req, res) => {
 });
 
 // Get compression stats
-app.get('/api/stats', protect, (req, res) => {
+app.get('/api/stats', (req, res) => {
   const allJobs = Array.from(jobs.values()).filter(j => j.status === 'completed');
   const totalOriginal = allJobs.reduce((sum, j) => sum + (j.fileSize || 0), 0);
   const totalCompressed = allJobs.reduce((sum, j) => sum + (j.result?.compressedSize || 0), 0);

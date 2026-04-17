@@ -101,6 +101,33 @@
   box-shadow: 0 0 8px var(--accent-success);
 }
 
+.chatbot-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chatbot-lang-select {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chatbot-lang-select:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.chatbot-lang-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
 .chatbot-close {
   background: transparent;
   border: none;

@@ -150,12 +150,38 @@
 
 /* Feature comparison */
 .feature-comparison table {
-  font-size: 0.9rem;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.feature-comparison th,
+.feature-comparison td {
+  padding: 18px 24px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.feature-comparison th {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.feature-comparison tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.01);
 }
 
 .feature-comparison td:first-child {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.feature-comparison tbody tr:last-child td {
+  border-bottom: none;
 }
 
 @media (max-width: 768px) {
